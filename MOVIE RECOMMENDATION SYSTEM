@@ -1,0 +1,44 @@
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.metrics.pairwise import cosine_similarity
+
+# Load the movie ratings dataset (replace 'ratings.csv' with your actual file path)
+ratings_df = pd.read_csv('ratings.csv')
+
+# Split the data into training and testing sets (20% for testing)
+train_data, test_data = train_test_split(ratings_df, test_size=0.2)
+
+# Create a user-item matrix from the training data
+user_item_matrix = train_data.pivot_table(index='userId', columns='movieId', values='rating')
+
+# Calculate cosine similarity between users using user_item_matrix
+user_similarity = cosine_similarity(user_item_matrix.T)
+
+def recommend_movies(user_id, user_similarity, user_item_matrix, k=10):
+  """
+  Recommends movies based on cosine similarity with other users.
+
+  Args:
+      user_id: The user ID for whom recommendations are made.
+      user_similarity: Cosine similarity matrix between users.
+      user_item_matrix: User-item matrix containing ratings.
+      k: Number of top recommendations to return (default: 10).
+
+  Returns:
+      List of movie IDs for recommended movies.
+  """
+  # Get similar users based on cosine similarity scores
+  similar_users = user_similarity[user_id - 1].argsort()[::-1][1:k+1]  # Exclude the user itself
+
+  # Weighted sum of ratings from similar users for unrated movies
+  unrated_movies = user_item_matrix.columns[~user_item_matrix.loc[user_id].isnull()]
+  weighted_ratings = user_item_matrix[unrated_movies].dot(similar_users)
+
+  # Sort movies based on predicted ratings (weighted_ratings)
+  recommended_movies = weighted_ratings.sort_values(ascending=False).index.tolist()
+
+  return recommended_movies
+
+# Example usage: Get recommendations for user ID 10
+recommended_movie_ids = recommend_movies(10, user_similarity, user_item_matrix)
+print(f"Recommended movie IDs for user 10: {recommended_movie_ids}")
